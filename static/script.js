@@ -1,5 +1,6 @@
 const form = document.getElementById("controls");
 const fileInput = document.getElementById("image");
+const overlayInput = document.getElementById("overlay");
 const animationTypeInput = document.getElementById("animation_type");
 const framesInput = document.getElementById("frames");
 const durationInput = document.getElementById("frame_duration");
@@ -31,6 +32,13 @@ async function generateGif() {
 
   const formData = new FormData();
   formData.append("image", file);
+  
+  // Add overlay image if present
+  const [overlayFile] = overlayInput.files;
+  if (overlayFile) {
+    formData.append("overlay", overlayFile);
+  }
+  
   formData.append("animation_type", animationTypeInput.value);
   formData.append("frames", clampValue(framesInput.value, 2, 240, 24));
   formData.append("frame_duration", clampValue(durationInput.value, 10, 5000, 50));
@@ -77,6 +85,13 @@ function triggerAutoGenerate() {
 }
 
 fileInput.addEventListener("change", () => {
+  if (fileInput.files.length > 0) {
+    generateGif();
+  }
+});
+
+// Regenerate when overlay image changes
+overlayInput.addEventListener("change", () => {
   if (fileInput.files.length > 0) {
     generateGif();
   }

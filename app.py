@@ -17,7 +17,8 @@ def generate_loop_gif(
     animation_type: str, 
     frames: int, 
     frame_duration_ms: int, 
-    bg_color: str
+    bg_color: str,
+    overlay_file=None
 ) -> io.BytesIO:
     """
     Generate a looping GIF with the specified animation.
@@ -28,6 +29,7 @@ def generate_loop_gif(
         frames: Number of frames in the animation
         frame_duration_ms: Duration of each frame in milliseconds
         bg_color: Background color as hex string
+        overlay_file: Optional file object containing overlay image
     
     Returns:
         BytesIO buffer containing the generated GIF
@@ -35,6 +37,19 @@ def generate_loop_gif(
     source = Image.open(image_file).convert("RGBA")
     bg_rgba = parse_color(bg_color)
     frame_sequence = build_frames(source, animation_type, frames, bg_rgba)
+
+    # Apply overlay to all frames if provided
+    if overlay_file:
+        overlay = Image.open(overlay_file).convert("RGBA")
+        # Resize overlay to match frame size
+        frame_width, frame_height = frame_sequence[0].size
+        if overlay.size != (frame_width, frame_height):
+            overlay = overlay.resize((frame_width, frame_height), Image.Resampling.LANCZOS)
+        
+        # Composite overlay on top of each frame
+        frame_sequence = [
+            Image.alpha_composite(frame, overlay) for frame in frame_sequence
+        ]
 
     # Convert to palette mode to keep GIF size reasonable
     palette_frames = [
@@ -69,6 +84,9 @@ def generate():
     if not file:
         return jsonify({"error": "Missing image file"}), 400
 
+    # Get optional overlay image
+    overlay_file = request.files.get("overlay")
+
     animation_type = (request.form.get("animation_type") or "left").lower()
     if animation_type not in VALID_ANIMATION_TYPES:
         animation_type = "left"
@@ -89,7 +107,7 @@ def generate():
 
     try:
         gif_buffer = generate_loop_gif(
-            file, animation_type, frames, frame_duration_ms, bgcolor
+            file, animation_type, frames, frame_duration_ms, bgcolor, overlay_file
         )
     except Exception as exc:
         return jsonify({"error": f"Failed to create GIF: {exc}"}), 500
